@@ -101,7 +101,7 @@ smallStepE (Sub (Num n) e, s) = let (el,sl) = smallStepE (e,s)
                                 in (Sub (Num n) el, sl)
 smallStepE (Sub e1 e2, s) = let (el, sl) = smallStepE (e1, s)
                             in (Sub el e2, sl)
-
+smallStepE (Num n, s) = (Num n, s)
 
 smallStepB :: (B, Memoria) -> (B, Memoria)
 smallStepB (Not TRUE, s)  = (FALSE, s)
@@ -127,13 +127,13 @@ smallStepB (Igual e1 e2, s) = let (el, sl) = smallStepE (e1, s) in (Igual el e2,
 
 smallStepC :: (C, Memoria) -> (C, Memoria)
 
--- PROBLEMINHA AQUI NO IF
+-- IF
 smallStepC (If TRUE c1 _, s) = (c1, s)
 smallStepC (If FALSE _ c2, s) = (c2, s)
--- Se b ainda não for avaliado, chama smallStepB para resolver a expressão
 smallStepC (If b c1 c2, s) = 
   let (bl, sl) = smallStepB (b, s) 
   in (If bl c1 c2, sl)
+
 
 smallStepC (Seq Skip c2, s) = (c2, s)
 smallStepC (Seq c1 c2, s) = let (cl, sl) = smallStepC (c1, s) in (Seq cl c2, sl)
@@ -150,9 +150,11 @@ smallStepC (DoWhile c b, s) =
      then (Seq cl (DoWhile c b), sl') 
      else (Skip, sl')
 
+smallStepC (Unless (FALSE) c1 c2, s) = (c1, s)
+smallStepC (Unless (TRUE) c1 c2, s)  = (c2, s)
 smallStepC (Unless b c1 c2, s) = 
-  let (bl, sl) = smallStepB (b, s) 
-  in (If (Not bl) c1 c2, sl)
+  let (b', s') = smallStepB (b, s)  -- Avalia a expressão booleana
+  in (Unless b' c1 c2, s')
 
 smallStepC (Loop (Num 0) _, s) = (Skip, s)
 smallStepC (Loop (Num n) c, s) = (Seq c (Loop (Num (n-1)) c), s)
@@ -276,16 +278,16 @@ fatorial = (Seq (Atrib (Var "y") (Num 1))
                             (Atrib (Var "x") (Sub (Var "x") (Num 1))))))
 
 -- EXEMPLOS
--- não ta funcionando
+-- Programa 1
 progUnlessLoop :: C
-progUnlessLoop = Unless (Leq (Num 10) (Var "x"))
-                        (Loop (Sub (Num 10) (Var "x")) (Atrib (Var "x") (Soma (Var "x") (Num 1))))
+progUnlessLoop = Unless (Leq (Num 7) (Num 6))
+                        (Loop (Sub (Var "x") (Num 4)) (Atrib (Var "x") (Soma (Var "x") (Num 1))))
                         (Atrib (Var "x") (Num 0))
 
 memoria1 :: Memoria
 memoria1 = [("x", 7)]  -- Começa com "x" valendo 7
 
--- ta ok 
+-- Programa 2
 progSwapDAtrrib :: C
 progSwapDAtrrib = Seq (Swap (Var "a") (Var "b"))
                      (DAtrrib (Var "a") (Var "b") (Num 5) (Num 10))
@@ -293,3 +295,10 @@ progSwapDAtrrib = Seq (Swap (Var "a") (Var "b"))
 memoria2 :: Memoria
 memoria2 = [("a", 20), ("b", 30)]
 
+
+-- Programa 3
+progIf :: C
+progIf = If (Leq (Num 3) (Num 5)) (Atrib (Var "x") (Num 1)) (Atrib (Var "x") (Num 0))
+
+memoria3 :: Memoria
+memoria3 = [("x", 0)]
